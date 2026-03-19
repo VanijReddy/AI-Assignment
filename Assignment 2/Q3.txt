@@ -1,0 +1,36 @@
+def dynamic_astar(grid, start, goal):
+    current = start
+    path_taken = [current]
+
+    while current != goal:
+        path = astar(grid, current, goal)
+
+        if not path:
+            print("No path found")
+            return path_taken
+
+        # Move step by step
+        for step in path[1:]:
+            # Simulate dynamic obstacle
+            if random.random() < 0.1:
+                x, y = step
+                grid[x][y] = 1  # obstacle appears
+                print("Obstacle appeared at", step)
+                break
+
+            current = step
+            path_taken.append(current)
+
+            if current == goal:
+                return path_taken
+
+    return path_taken
+
+
+# Run dynamic
+grid = generate_grid(0.1)
+start = (0, 0)
+goal = (19, 19)
+
+path = dynamic_astar(grid, start, goal)
+print("Final Path:", path)

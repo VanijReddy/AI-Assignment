@@ -1,0 +1,66 @@
+import heapq
+import random
+
+ROWS, COLS = 20, 20  # smaller grid for demo
+
+# Generate grid with obstacles
+def generate_grid(density):
+    grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+    for i in range(ROWS):
+        for j in range(COLS):
+            if random.random() < density:
+                grid[i][j] = 1  # obstacle
+    return grid
+
+
+def heuristic(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def astar(grid, start, goal):
+    pq = []
+    heapq.heappush(pq, (0, start))
+
+    came_from = {}
+    cost_so_far = {start: 0}
+
+    while pq:
+        _, current = heapq.heappop(pq)
+
+        if current == goal:
+            break
+
+        x, y = current
+        for dx, dy in [(0,1),(1,0),(0,-1),(-1,0)]:
+            nx, ny = x+dx, y+dy
+
+            if 0 <= nx < ROWS and 0 <= ny < COLS and grid[nx][ny] == 0:
+                new_cost = cost_so_far[current] + 1
+
+                if (nx, ny) not in cost_so_far or new_cost < cost_so_far[(nx, ny)]:
+                    cost_so_far[(nx, ny)] = new_cost
+                    priority = new_cost + heuristic(goal, (nx, ny))
+                    heapq.heappush(pq, (priority, (nx, ny)))
+                    came_from[(nx, ny)] = current
+
+    # Reconstruct path
+    path = []
+    curr = goal
+    while curr != start:
+        path.append(curr)
+        curr = came_from.get(curr, start)
+    path.append(start)
+    path.reverse()
+
+    return path
+
+
+# Run
+grid = generate_grid(0.2)  # density: 0.1 low, 0.2 medium, 0.3 high
+start = (0, 0)
+goal = (19, 19)
+
+path = astar(grid, start, goal)
+
+print("Path:", path)
+print("Path length:", len(path))
