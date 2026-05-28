@@ -1,0 +1,291 @@
+"""
+Assignment 5
+Bayesian Network Implementation
+Example: Car Fault Diagnosis
+
+Variables:
+    Battery Issue     - prior probability
+    Fuel Problem      - prior probability
+    Engine Fault      - depends on Battery Issue + Fuel Problem
+    Car Won't Start   - depends on Engine Fault + Battery Issue
+    Warning Light On  - depends on Engine Fault
+    Strange Noise     - depends on Engine Fault + Fuel Problem
+
+Query Examples:
+    P(Battery Issue  | Car Won't Start=True, Warning Light=True)
+    P(Fuel Problem   | Strange Noise=True, Car Won't Start=True)
+    P(Engine Fault   | Warning Light=True, Strange Noise=True)
+
+"""
+
+
+# ---------------------------------------------------------------------------
+# Core Bayesian Network (same architecture, different domain)
+# ---------------------------------------------------------------------------
+
+class BayesianNetwork:
+
+    def __init__(self):
+        self.variables = []
+        self.parents = {}
+        self.cpt = {}
+
+    def add_variable(self, variable, parents, cpt):
+        self.variables.append(variable)
+        self.parents[variable] = parents
+        self.cpt[variable] = cpt
+
+    def probability(self, variable, value, evidence):
+        parent_list = self.parents[variable]
+
+        if len(parent_list) == 0:
+            true_prob = self.cpt[variable][()]
+        else:
+            key = tuple(evidence[parent] for parent in parent_list)
+            true_prob = self.cpt[variable][key]
+
+        return true_prob if value is True else 1 - true_prob
+
+    def display_network(self):
+        """Print the full network structure and CPTs."""
+        print("\n  NETWORK STRUCTURE")
+        print("  " + "-" * 50)
+        for var in self.variables:
+            parents = self.parents[var]
+            if parents:
+                print(f"  {var} ← {', '.join(parents)}")
+            else:
+                print(f"  {var}  (root node)")
+
+        print("\n  CONDITIONAL PROBABILITY TABLES")
+        print("  " + "-" * 50)
+        for var in self.variables:
+            parents = self.parents[var]
+            print(f"\n  P({var})")
+            for key, prob in self.cpt[var].items():
+                if not key:
+                    print(f"    P({var}=True)             = {prob}")
+                else:
+                    cond = ", ".join(
+                        f"{p}={v}" for p, v in zip(parents, key)
+                    )
+                    print(f"    P({var}=True | {cond}) = {prob}")
+
+
+# ---------------------------------------------------------------------------
+# Enumeration-based exact inference (same as reference)
+# ---------------------------------------------------------------------------
+
+def enumerate_all(variables, evidence, network):
+    if len(variables) == 0:
+        return 1.0
+
+    first = variables[0]
+    rest = variables[1:]
+
+    if first in evidence:
+        p = network.probability(first, evidence[first], evidence)
+        return p * enumerate_all(rest, evidence, network)
+
+    total = 0.0
+    for value in [True, False]:
+        new_evidence = evidence.copy()
+        new_evidence[first] = value
+        p = network.probability(first, value, new_evidence)
+        total += p * enumerate_all(rest, new_evidence, network)
+    return total
+
+
+def inference(query_variable, evidence, network):
+    distribution = {}
+    for value in [True, False]:
+        new_evidence = evidence.copy()
+        new_evidence[query_variable] = value
+        distribution[value] = enumerate_all(
+            network.variables, new_evidence, network
+        )
+
+    total = distribution[True] + distribution[False]
+    distribution[True] /= total
+    distribution[False] /= total
+    return distribution
+
+
+# ---------------------------------------------------------------------------
+# Build the Car Fault Diagnosis Network
+# ---------------------------------------------------------------------------
+
+def build_car_network():
+    net = BayesianNetwork()
+
+    # Root nodes (prior probabilities)
+    net.add_variable(
+        "Battery Issue",
+        [],
+        {(): 0.15}        # 15% chance of a battery problem
+    )
+
+    net.add_variable(
+        "Fuel Problem",
+        [],
+        {(): 0.10}        # 10% chance of a fuel problem
+    )
+
+    # Engine Fault depends on Battery Issue AND Fuel Problem
+    net.add_variable(
+        "Engine Fault",
+        ["Battery Issue", "Fuel Problem"],
+        {
+            (True,  True):  0.95,   # both faulty → almost certain engine fault
+            (True,  False): 0.70,   # only battery → likely engine fault
+            (False, True):  0.60,   # only fuel → moderate engine fault chance
+            (False, False): 0.05    # neither → rare spontaneous fault
+        }
+    )
+
+    # Car Won't Start depends on Battery Issue AND Engine Fault
+    net.add_variable(
+        "Car Won't Start",
+        ["Battery Issue", "Engine Fault"],
+        {
+            (True,  True):  0.99,
+            (True,  False): 0.85,   # dead battery alone can prevent start
+            (False, True):  0.75,   # engine fault alone often prevents start
+            (False, False): 0.02
+        }
+    )
+
+    # Warning Light depends on Engine Fault
+    net.add_variable(
+        "Warning Light On",
+        ["Engine Fault"],
+        {
+            (True,):  0.92,   # engine fault almost always triggers warning
+            (False,): 0.08    # occasional false warning light
+        }
+    )
+
+    # Strange Noise depends on Engine Fault AND Fuel Problem
+    net.add_variable(
+        "Strange Noise",
+        ["Engine Fault", "Fuel Problem"],
+        {
+            (True,  True):  0.90,
+            (True,  False): 0.65,
+            (False, True):  0.50,   # fuel problems can cause noise without engine fault
+            (False, False): 0.05
+        }
+    )
+
+    return net
+
+
+# ---------------------------------------------------------------------------
+# Run multiple diagnostic queries
+# ---------------------------------------------------------------------------
+
+def run_all_queries(net):
+    queries = [
+        {
+            "description": "Car won't start + warning light on → Battery Issue?",
+            "query": "Battery Issue",
+            "evidence": {"Car Won't Start": True, "Warning Light On": True}
+        },
+        {
+            "description": "Strange noise + car won't start → Fuel Problem?",
+            "query": "Fuel Problem",
+            "evidence": {"Strange Noise": True, "Car Won't Start": True}
+        },
+        {
+            "description": "Warning light + strange noise → Engine Fault?",
+            "query": "Engine Fault",
+            "evidence": {"Warning Light On": True, "Strange Noise": True}
+        },
+        {
+            "description": "Only strange noise (no other symptoms) → Fuel Problem?",
+            "query": "Fuel Problem",
+            "evidence": {"Strange Noise": True}
+        },
+        {
+            "description": "All symptoms present → Battery Issue?",
+            "query": "Battery Issue",
+            "evidence": {
+                "Car Won't Start": True,
+                "Warning Light On": True,
+                "Strange Noise": True
+            }
+        }
+    ]
+
+    print("\n  DIAGNOSTIC QUERY RESULTS")
+    print("  " + "=" * 55)
+
+    for i, q in enumerate(queries, 1):
+        result = inference(q["query"], q["evidence"], net)
+        evidence_str = ", ".join(
+            f"{k}={v}" for k, v in q["evidence"].items()
+        )
+        print(f"\n  Query {i}: {q['description']}")
+        print(f"  Evidence  : {evidence_str}")
+        print(f"  P({q['query']}=True)  = {result[True]:.5f}  ({result[True]*100:.1f}%)")
+        print(f"  P({q['query']}=False) = {result[False]:.5f}  ({result[False]*100:.1f}%)")
+
+        verdict = "LIKELY" if result[True] > 0.5 else "UNLIKELY"
+        print(f"  Verdict   : {q['query']} is {verdict}")
+
+
+# ---------------------------------------------------------------------------
+# Sensitivity analysis (new feature — not in reference implementation)
+# Shows how P(Engine Fault) changes as P(Battery Issue) varies
+# ---------------------------------------------------------------------------
+
+def sensitivity_analysis(net):
+    print("\n  SENSITIVITY ANALYSIS")
+    print("  How P(Engine Fault=True | Car Won't Start=True)")
+    print("  changes with different prior P(Battery Issue)")
+    print("  " + "-" * 50)
+    print(f"  {'P(Battery Issue)':<22} {'P(Engine Fault|Evidence)'}")
+    print("  " + "-" * 50)
+
+    original_prior = net.cpt["Battery Issue"][()]
+
+    for prior in [0.05, 0.10, 0.20, 0.30, 0.50, 0.70, 0.90]:
+        net.cpt["Battery Issue"][()] = prior
+        result = inference(
+            "Engine Fault",
+            {"Car Won't Start": True},
+            net
+        )
+        bar = "█" * int(result[True] * 20)
+        print(f"  {prior:<22.2f} {result[True]:.5f}  {bar}")
+
+    # restore original
+    net.cpt["Battery Issue"][()] = original_prior
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+    net = build_car_network()
+
+    print("=" * 60)
+    print("      CAR FAULT DIAGNOSIS — BAYESIAN NETWORK")
+    print("=" * 60)
+
+    net.display_network()
+    run_all_queries(net)
+    sensitivity_analysis(net)
+
+    print("\n" + "=" * 60)
+    print("  INTERPRETATION GUIDE")
+    print("=" * 60)
+    print("  Probability > 0.70  →  Strong evidence of this fault")
+    print("  Probability 0.40-0.70  →  Possible, investigate further")
+    print("  Probability < 0.40  →  Unlikely to be root cause")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

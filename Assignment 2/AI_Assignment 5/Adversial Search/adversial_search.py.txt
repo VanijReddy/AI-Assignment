@@ -1,0 +1,275 @@
+"""
+Adversarial Search Algorithms
+Game: Coin Picking Game
+
+Rules:
+- Start with a random number of coins (12-20)
+- Players can take 1, 2, or 3 coins per turn
+- The player who takes the LAST coin LOSES (misere variant)
+"""
+
+import math
+import random
+
+
+# ---------------------------------------------------------------------------
+# Game State
+# ---------------------------------------------------------------------------
+
+class CoinGame:
+
+    def __init__(self, coins, player="X"):
+        self.coins = coins
+        self.player = player
+        self.nodes_explored = 0  # tracked at top level only
+
+    def actions(self):
+        """Can take 1, 2, or 3 coins (if available)."""
+        return [i for i in [1, 2, 3] if self.coins >= i]
+
+    def result(self, move):
+        next_player = "O" if self.player == "X" else "X"
+        return CoinGame(self.coins - move, next_player)
+
+    def terminal(self):
+        return self.coins == 0
+
+    def utility(self):
+        """
+        The player who just moved (previous player) took the last coin
+        and therefore LOSES. So the current player (who faces 0 coins) WINS.
+        """
+        if self.coins != 0:
+            return 0
+        # current player wins (opponent took the last coin)
+        if self.player == "X":
+            return 1   # X wins
+        else:
+            return -1  # O wins
+
+
+# ---------------------------------------------------------------------------
+# 1. Minimax
+# ---------------------------------------------------------------------------
+
+_mm_nodes = 0
+
+def minimax(state):
+    """
+    Pure Minimax: explores the full game tree.
+    Returns (value, best_move).
+    """
+    global _mm_nodes
+    _mm_nodes += 1
+
+    if state.terminal():
+        return state.utility(), None
+
+    if state.player == "X":          # MAX
+        best, move = -math.inf, None
+        for action in state.actions():
+            value, _ = minimax(state.result(action))
+            if value > best:
+                best, move = value, action
+        return best, move
+
+    else:                            # MIN
+        best, move = math.inf, None
+        for action in state.actions():
+            value, _ = minimax(state.result(action))
+            if value < best:
+                best, move = value, action
+        return best, move
+
+
+# ---------------------------------------------------------------------------
+# 2. Alpha-Beta Pruning
+# ---------------------------------------------------------------------------
+
+_ab_nodes = 0
+
+def alpha_beta(state, alpha=-math.inf, beta=math.inf):
+    """
+    Alpha-Beta: same result as Minimax but prunes irrelevant branches.
+    Returns (value, best_move).
+    """
+    global _ab_nodes
+    _ab_nodes += 1
+
+    if state.terminal():
+        return state.utility(), None
+
+    if state.player == "X":          # MAX
+        best, move = -math.inf, None
+        for action in state.actions():
+            value, _ = alpha_beta(state.result(action), alpha, beta)
+            if value > best:
+                best, move = value, action
+            alpha = max(alpha, best)
+            if beta <= alpha:
+                break                # β-cutoff
+        return best, move
+
+    else:                            # MIN
+        best, move = math.inf, None
+        for action in state.actions():
+            value, _ = alpha_beta(state.result(action), alpha, beta)
+            if value < best:
+                best, move = value, action
+            beta = min(beta, best)
+            if beta <= alpha:
+                break                # α-cutoff
+        return best, move
+
+
+# ---------------------------------------------------------------------------
+# 3. Heuristic Alpha-Beta (depth-limited)
+# ---------------------------------------------------------------------------
+
+_hab_nodes = 0
+
+def heuristic(state):
+    """
+    Estimate board value without solving fully.
+    Key insight: positions where coins % 4 == 1 are losing for the player
+    about to move (since opponent can always mirror to maintain this).
+    """
+    remainder = state.coins % 4
+    if state.player == "X":
+        return -1 if remainder == 1 else 1
+    else:
+        return 1 if remainder == 1 else -1
+
+
+def heuristic_alpha_beta(state, depth, alpha=-math.inf, beta=math.inf):
+    """
+    Depth-limited Alpha-Beta with heuristic evaluation at cutoff nodes.
+    Returns (value, best_move).
+    """
+    global _hab_nodes
+    _hab_nodes += 1
+
+    if state.terminal():
+        return state.utility(), None
+
+    if depth == 0:
+        return heuristic(state), None
+
+    if state.player == "X":          # MAX
+        best, move = -math.inf, None
+        for action in state.actions():
+            value, _ = heuristic_alpha_beta(state.result(action), depth - 1, alpha, beta)
+            if value > best:
+                best, move = value, action
+            alpha = max(alpha, best)
+            if beta <= alpha:
+                break
+        return best, move
+
+    else:                            # MIN
+        best, move = math.inf, None
+        for action in state.actions():
+            value, _ = heuristic_alpha_beta(state.result(action), depth - 1, alpha, beta)
+            if value < best:
+                best, move = value, action
+            beta = min(beta, best)
+            if beta <= alpha:
+                break
+        return best, move
+
+
+# ---------------------------------------------------------------------------
+# 4. Monte-Carlo Tree Search (flat rollout version)
+# ---------------------------------------------------------------------------
+
+def mcts(state, simulations=1500):
+    """
+    Flat MCTS: for each legal action, simulate random playouts and
+    pick the action with the best win rate for the current player.
+    Returns best_move.
+    """
+    scores = {}
+    win_value = 1 if state.player == "X" else -1
+
+    for action in state.actions():
+        wins = 0
+        for _ in range(simulations):
+            current = state.result(action)
+            while not current.terminal():
+                current = current.result(random.choice(current.actions()))
+            if current.utility() == win_value:
+                wins += 1
+        scores[action] = wins
+
+    return max(scores, key=scores.get), scores
+
+
+# ---------------------------------------------------------------------------
+# Main: run all algorithms and compare
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+
+    coins = random.randint(12, 20)
+    state = CoinGame(coins)
+
+    print("=" * 50)
+    print("        COIN PICKING GAME (Misere Variant)")
+    print("=" * 50)
+    print(f"Initial coins : {coins}")
+    print(f"Current player: {state.player}")
+    print(f"Rules         : Take 1, 2, or 3 coins. Last coin = LOSE.")
+    print("=" * 50)
+
+    # 1. Minimax
+    _mm_nodes = 0
+    mm_val, mm_move = minimax(state)
+    print(f"\n[1] Minimax")
+    print(f"    Best move     : take {mm_move} coin(s)")
+    print(f"    Game value    : {mm_val}")
+    print(f"    Nodes explored: {_mm_nodes}")
+
+    # 2. Alpha-Beta
+    _ab_nodes = 0
+    ab_val, ab_move = alpha_beta(state)
+    print(f"\n[2] Alpha-Beta")
+    print(f"    Best move     : take {ab_move} coin(s)")
+    print(f"    Game value    : {ab_val}")
+    print(f"    Nodes explored: {_ab_nodes}")
+    print(f"    Pruning saved : {_mm_nodes - _ab_nodes} nodes "
+          f"({100*(_mm_nodes-_ab_nodes)//_mm_nodes}% reduction)")
+
+    # 3. Heuristic Alpha-Beta
+    _hab_nodes = 0
+    hab_val, hab_move = heuristic_alpha_beta(state, depth=5)
+    print(f"\n[3] Heuristic Alpha-Beta (depth=5)")
+    print(f"    Best move     : take {hab_move} coin(s)")
+    print(f"    Heuristic val : {hab_val}")
+    print(f"    Nodes explored: {_hab_nodes}")
+
+    # 4. MCTS
+    mcts_move, mcts_scores = mcts(state, simulations=1500)
+    print(f"\n[4] Monte-Carlo Tree Search (1500 simulations/action)")
+    print(f"    Win counts    : {mcts_scores}")
+    print(f"    Best move     : take {mcts_move} coin(s)")
+
+    # Summary
+    print("\n" + "=" * 50)
+    print("              SUMMARY")
+    print("=" * 50)
+    print(f"  {'Algorithm':<30} {'Move':>6}")
+    print(f"  {'-'*36}")
+    print(f"  {'Minimax':<30} {mm_move:>6}")
+    print(f"  {'Alpha-Beta':<30} {ab_move:>6}")
+    print(f"  {'Heuristic Alpha-Beta (d=5)':<30} {hab_move:>6}")
+    print(f"  {'MCTS (1500 sims)':<30} {mcts_move:>6}")
+    print("=" * 50)
+
+    # Optimal strategy explanation
+    print("\nOptimal strategy insight:")
+    print(f"  coins % 4 = {coins} % 4 = {coins % 4}")
+    if coins % 4 == 1:
+        print("  Current player is in a LOSING position (remainder = 1).")
+    else:
+        print("  Current player is in a WINNING position (remainder != 1).")
+        print(f"  Optimal: take {(coins % 4) - 1} to leave opponent with remainder=1.")

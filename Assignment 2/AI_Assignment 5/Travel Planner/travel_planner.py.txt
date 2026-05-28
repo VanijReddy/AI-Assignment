@@ -1,0 +1,368 @@
+"""
+AI Based Travel Planner
+City: Hyderabad
+"""
+
+# ---------------------------------------------------------------------------
+# Knowledge Bases
+# ---------------------------------------------------------------------------
+
+PLACES_KB = [
+    {
+        "name": "Charminar",
+        "category": "history",
+        "time": 2,
+        "cost": 25,
+        "area": "Old City",
+        "rating": 4.8,
+        "best_time": "morning",
+        "accessible": True
+    },
+    {
+        "name": "Golconda Fort",
+        "category": "history",
+        "time": 3,
+        "cost": 15,
+        "area": "Golconda",
+        "rating": 4.7,
+        "best_time": "morning",
+        "accessible": False
+    },
+    {
+        "name": "Hussain Sagar Lake",
+        "category": "nature",
+        "time": 2,
+        "cost": 60,
+        "area": "Banjara Hills",
+        "rating": 4.3,
+        "best_time": "evening",
+        "accessible": True
+    },
+    {
+        "name": "Ramoji Film City",
+        "category": "entertainment",
+        "time": 6,
+        "cost": 1150,
+        "area": "Hayathnagar",
+        "rating": 4.5,
+        "best_time": "morning",
+        "accessible": True
+    },
+    {
+        "name": "Salar Jung Museum",
+        "category": "museum",
+        "time": 3,
+        "cost": 20,
+        "area": "Old City",
+        "rating": 4.6,
+        "best_time": "afternoon",
+        "accessible": True
+    },
+    {
+        "name": "Birla Mandir",
+        "category": "spiritual",
+        "time": 1,
+        "cost": 0,
+        "area": "Nampally",
+        "rating": 4.5,
+        "best_time": "evening",
+        "accessible": True
+    },
+    {
+        "name": "Nehru Zoological Park",
+        "category": "nature",
+        "time": 4,
+        "cost": 80,
+        "area": "Bahadurpura",
+        "rating": 4.2,
+        "best_time": "morning",
+        "accessible": True
+    },
+    {
+        "name": "Qutb Shahi Tombs",
+        "category": "history",
+        "time": 2,
+        "cost": 15,
+        "area": "Golconda",
+        "rating": 4.4,
+        "best_time": "morning",
+        "accessible": True
+    },
+    {
+        "name": "Laad Bazaar",
+        "category": "shopping",
+        "time": 2,
+        "cost": 0,
+        "area": "Old City",
+        "rating": 4.3,
+        "best_time": "afternoon",
+        "accessible": True
+    },
+    {
+        "name": "HITECH City",
+        "category": "landmark",
+        "time": 2,
+        "cost": 0,
+        "area": "Madhapur",
+        "rating": 4.0,
+        "best_time": "evening",
+        "accessible": True
+    }
+]
+
+FOOD_KB = {
+    "Old City": [
+        "Hyderabadi Biryani",
+        "Haleem",
+        "Osmania Biscuits"
+    ],
+    "Golconda": [
+        "Mutton Biryani",
+        "Kebabs"
+    ],
+    "Banjara Hills": [
+        "Mirchi Ka Salan",
+        "Irani Chai"
+    ],
+    "Hayathnagar": [
+        "Qubani Ka Meetha",
+        "Double Ka Meetha"
+    ],
+    "Nampally": [
+        "Lukhmi",
+        "Sheer Korma"
+    ],
+    "Bahadurpura": [
+        "Paya Soup",
+        "Nihari"
+    ],
+    "Madhapur": [
+        "Hyderabadi Chicken 65",
+        "Pesarattu"
+    ]
+}
+
+DRINK_KB = {
+    "Hyderabadi Biryani": "Irani Chai",
+    "Haleem": "Lassi",
+    "Osmania Biscuits": "Irani Chai",
+    "Mutton Biryani": "Butter Milk",
+    "Kebabs": "Sharbat",
+    "Mirchi Ka Salan": "Lassi",
+    "Irani Chai": "Irani Chai",
+    "Qubani Ka Meetha": "Rose Milk",
+    "Double Ka Meetha": "Falooda",
+    "Lukhmi": "Irani Chai",
+    "Sheer Korma": "Badam Milk",
+    "Paya Soup": "Butter Milk",
+    "Nihari": "Kahwa",
+    "Hyderabadi Chicken 65": "Lassi",
+    "Pesarattu": "Filter Coffee"
+}
+
+TRANSPORT_KB = {
+    "budget": "TSRTC Bus / Metro Rail",
+    "standard": "Metro + Ola Auto",
+    "luxury": "Private Cab (Ola/Uber)"
+}
+
+DAILY_COST_KB = {
+    "budget": 500,       # INR
+    "standard": 1200,    # INR
+    "luxury": 3000       # INR
+}
+
+
+# ---------------------------------------------------------------------------
+# Scoring function (enhanced with rating + accessibility)
+# ---------------------------------------------------------------------------
+
+def score_place(place, user):
+    score = 0
+
+    if place["category"] in user["interests"]:
+        score += 10
+
+    if place["cost"] <= user["max_place_cost"]:
+        score += 4
+
+    if place["time"] <= user["max_time_per_place"]:
+        score += 3
+
+    if place["area"] == user["preferred_area"]:
+        score += 5
+
+    # New: factor in rating (0-5 scaled to 0-5 points)
+    score += place["rating"] - 3.5
+
+    # New: accessibility filter
+    if user.get("accessibility_required") and not place["accessible"]:
+        score -= 20   # effectively removes inaccessible places
+
+    return score
+
+
+# ---------------------------------------------------------------------------
+# Itinerary builder — groups places by area (reduces travel time)
+# ---------------------------------------------------------------------------
+
+def create_itinerary(user):
+    scored = sorted(
+        [(score_place(p, user), p) for p in PLACES_KB],
+        key=lambda x: x[0],
+        reverse=True
+    )
+
+    selected = []
+    total_time = 0
+    available = user["days"] * 8   # 8 hours per day
+
+    for _, place in scored:
+        if total_time + place["time"] <= available:
+            selected.append(place)
+            total_time += place["time"]
+
+    # Group by area to reduce back-and-forth travel (new feature)
+    from collections import defaultdict
+    area_groups = defaultdict(list)
+    for place in selected:
+        area_groups[place["area"]].append(place)
+
+    grouped = []
+    for area, places in area_groups.items():
+        grouped.extend(places)
+
+    return grouped
+
+
+# ---------------------------------------------------------------------------
+# Day-wise schedule generator (new feature not in reference)
+# ---------------------------------------------------------------------------
+
+def build_day_schedule(places, days):
+    schedule = {d: [] for d in range(1, days + 1)}
+    hours_used = {d: 0 for d in range(1, days + 1)}
+    daily_limit = 8
+
+    for place in places:
+        for day in range(1, days + 1):
+            if hours_used[day] + place["time"] <= daily_limit:
+                schedule[day].append(place)
+                hours_used[day] += place["time"]
+                break
+
+    return schedule
+
+
+# ---------------------------------------------------------------------------
+# Food recommendation
+# ---------------------------------------------------------------------------
+
+def recommend_food(places):
+    seen_areas = set()
+    recommendations = []
+    for place in places:
+        if place["area"] not in seen_areas:
+            seen_areas.add(place["area"])
+            for food in FOOD_KB.get(place["area"], []):
+                recommendations.append({
+                    "food": food,
+                    "drink": DRINK_KB.get(food, "Local Drink"),
+                    "area": place["area"]
+                })
+    return recommendations
+
+
+# ---------------------------------------------------------------------------
+# Budget estimator
+# ---------------------------------------------------------------------------
+
+def estimate_budget(user, places):
+    travel = DAILY_COST_KB[user["travel_style"]] * user["days"]
+    attraction = sum(p["cost"] for p in places)
+    food = 300 * user["days"]    # INR per day for food
+    misc = 200 * user["days"]    # souvenirs, tips, etc.
+    total = travel + attraction + food + misc
+    return {
+        "Transport": travel,
+        "Attractions": attraction,
+        "Food": food,
+        "Miscellaneous": misc,
+        "Total (INR)": total
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main plan generator
+# ---------------------------------------------------------------------------
+
+def generate_plan(user):
+    places = create_itinerary(user)
+    schedule = build_day_schedule(places, user["days"])
+    foods = recommend_food(places)
+    budget = estimate_budget(user, places)
+    return {
+        "city": "Hyderabad",
+        "days": user["days"],
+        "transport": TRANSPORT_KB[user["travel_style"]],
+        "places": places,
+        "schedule": schedule,
+        "foods": foods,
+        "budget": budget
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pretty printer
+# ---------------------------------------------------------------------------
+
+def print_plan(plan):
+    print("\n" + "=" * 55)
+    print("          AI TRAVEL PLAN — HYDERABAD")
+    print("=" * 55)
+    print(f"  City      : {plan['city']}")
+    print(f"  Duration  : {plan['days']} day(s)")
+    print(f"  Transport : {plan['transport']}")
+
+    print("\n  DAY-WISE SCHEDULE")
+    print("  " + "-" * 45)
+    for day, places in plan["schedule"].items():
+        print(f"  Day {day}:")
+        if not places:
+            print("    (rest / free time)")
+        for p in places:
+            cost_str = f"₹{p['cost']}" if p["cost"] > 0 else "Free"
+            acc = "♿" if p["accessible"] else "  "
+            print(f"    {acc} {p['name']:<30} {cost_str:>8}  {p['rating']}")
+
+    print("\n  FOOD & DRINK RECOMMENDATIONS")
+    print("  " + "-" * 45)
+    for item in plan["foods"]:
+        print(f"  [{item['area']}]  {item['food']}  →  {item['drink']}")
+
+    print("\n  ESTIMATED BUDGET (INR)")
+    print("  " + "-" * 45)
+    for k, v in plan["budget"].items():
+        print(f"  {k:<20}: ₹{v}")
+
+    print("=" * 55)
+
+
+# ---------------------------------------------------------------------------
+# Run
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+
+    user_profile = {
+        "days": 2,
+        "interests": ["history", "nature", "museum"],
+        "travel_style": "standard",
+        "preferred_area": "Old City",
+        "max_place_cost": 100,
+        "max_time_per_place": 4,
+        "accessibility_required": False
+    }
+
+    plan = generate_plan(user_profile)
+    print_plan(plan)

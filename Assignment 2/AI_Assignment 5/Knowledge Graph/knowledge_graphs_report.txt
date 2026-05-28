@@ -1,0 +1,294 @@
+Assignment 5 - Part 3
+Knowledge Graphs and Tools to Build Knowledge Graphs
+
+This part is descriptive and exploratory. It does not require code implementation.
+
+
+========================================
+1. What is a Knowledge Graph?
+========================================
+
+A Knowledge Graph is a structured, machine-readable representation of
+real-world entities and the relationships between them.
+
+It stores knowledge in the form of triples:
+
+    Subject  -->  Predicate  -->  Object
+
+Example (Hyderabad domain):
+
+    Hyderabad --> has_monument     --> Charminar
+    Charminar --> located_in       --> Old City
+    Hyderabad --> is_famous_for    --> Biryani
+    Biryani   --> pairs_with       --> Irani Chai
+
+This structure allows machines to reason, search, and infer new facts
+beyond what is explicitly stored.
+
+
+========================================
+2. Key Characteristics
+========================================
+
+1. Schema Flexibility
+   Unlike relational databases, KGs do not require a rigid schema.
+   New entity types and relationship types can be added at any time.
+
+2. Semantic Richness
+   Relationships carry meaning. "Charminar is_a Monument" is more
+   expressive than a raw foreign key link.
+
+3. Inferencing
+   KGs support reasoning — if Charminar is_a Monument and Monument
+   is_a TouristAttraction, then Charminar is_a TouristAttraction
+   can be inferred automatically.
+
+4. Interoperability
+   Using standards like RDF and OWL, KGs can be linked across
+   organisations (Linked Open Data).
+
+
+========================================
+3. Main Components
+========================================
+
+1. Nodes (Entities)
+   Represent real-world objects: people, places, events, concepts.
+   Example: Hyderabad, Biryani, Nawabs, TSRTC
+
+2. Edges (Relationships)
+   Directed, labelled connections between nodes.
+   Example: Hyderabad --> capital_of --> Telangana
+
+3. Properties (Attributes)
+   Key-value pairs attached to nodes or edges.
+   Example:
+     Charminar:
+       - built_in   = 1591
+       - built_by   = Muhammad Quli Qutb Shah
+       - height_m   = 56
+
+4. Triples (RDF format)
+   The fundamental unit of storage in semantic KGs.
+   Format: (Subject, Predicate, Object)
+   Example: (Biryani, origin, Hyderabad)
+
+
+========================================
+4. Real-World Knowledge Graph Examples
+========================================
+
+1. Google Knowledge Graph
+   Powers the info boxes ("Knowledge Panels") in Google Search.
+   Contains billions of facts about people, places, and things.
+
+2. Wikidata
+   A free, collaborative KG maintained by Wikimedia Foundation.
+   Used by Wikipedia and many research projects.
+
+3. DBpedia
+   Extracts structured data from Wikipedia infoboxes.
+   Available as Linked Open Data with SPARQL endpoint.
+
+4. Freebase (now merged into Wikidata)
+   Originally built by Metaweb, acquired by Google in 2010.
+
+5. Amazon Product Graph
+   Used to power product search and recommendations on Amazon.
+
+
+========================================
+5. Tools to Build Knowledge Graphs
+========================================
+
+A. Graph Databases
+------------------
+
+1. Neo4j
+   - Most widely used graph database.
+   - Uses Cypher query language.
+   - Excellent visualisation with Neo4j Browser.
+   - Free Community Edition available.
+   Example Cypher query:
+     MATCH (a)-[:HAS_FOOD]->(b) WHERE a.name = "Hyderabad" RETURN b
+
+2. Memgraph
+   - In-memory graph database, very fast for real-time analytics.
+   - Compatible with Cypher queries.
+
+3. Amazon Neptune
+   - Fully managed cloud graph database on AWS.
+   - Supports both RDF (SPARQL) and Property Graph (Gremlin).
+
+4. ArangoDB
+   - Multi-model database supporting graphs, documents, and key-value.
+
+5. JanusGraph
+   - Open-source distributed graph database.
+   - Scales to billions of edges.
+   - Integrates with Cassandra and HBase for storage.
+
+
+B. RDF and Semantic Web Tools
+------------------------------
+
+1. Apache Jena
+   - Java framework for building RDF and Semantic Web applications.
+   - Includes SPARQL query engine (ARQ) and inference engine (Pellet).
+
+2. GraphDB (Ontotext)
+   - Enterprise RDF triple store with OWL reasoning.
+   - SPARQL 1.1 compliant.
+
+3. RDFLib (Python)
+   - Pure Python library for working with RDF.
+   - Supports Turtle, JSON-LD, RDF/XML serialisation formats.
+   - Ideal for lightweight, scripted KG construction.
+   Install: pip install rdflib
+
+4. AllegroGraph
+   - High-performance semantic graph database.
+   - Supports SPARQL, Prolog, and federated queries.
+
+
+C. Ontology and Modelling Tools
+--------------------------------
+
+1. Protégé
+   - Free, open-source ontology editor by Stanford University.
+   - Supports OWL 2 and RDF ontologies.
+   - Has a visual class hierarchy editor.
+   - Widely used in academic and medical KG projects.
+
+2. TopBraid Composer
+   - Commercial ontology modelling tool.
+   - Supports SHACL, SPARQL, and SWRL rules.
+
+3. WebProtégé
+   - Web-based version of Protégé for collaborative ontology editing.
+
+
+D. Graph Visualisation Tools
+-----------------------------
+
+1. Gephi
+   - Open-source desktop tool for graph visualisation and analysis.
+   - Supports large-scale graphs with thousands of nodes.
+   - Useful for community detection and centrality analysis.
+
+2. Kumu
+   - Web-based relationship mapping and KG visualisation.
+   - Good for stakeholder maps and systems thinking.
+
+3. Linkurious
+   - Commercial tool for visualising and exploring graph data.
+   - Integrates directly with Neo4j and other graph databases.
+
+4. yEd Graph Editor
+   - Free desktop tool for drawing and analysing graphs.
+
+
+E. AI-Based KG Construction Tools
+------------------------------------
+
+1. LangChain
+   - Connects Large Language Models (LLMs) with external tools.
+   - Can extract entities and relationships from unstructured text.
+   - Example: feed a news article and extract a knowledge graph.
+
+2. LlamaIndex
+   - Converts documents (PDF, CSV, HTML) into structured KG format.
+   - Useful for RAG (Retrieval-Augmented Generation) pipelines.
+
+3. GLiNER
+   - Zero-shot Named Entity Recognition model.
+   - Identifies entities without domain-specific training data.
+
+4. spaCy + Custom NER
+   - Python NLP library with entity extraction and dependency parsing.
+   - Can be fine-tuned to extract domain-specific relationships.
+
+
+========================================
+6. Comparison of Key Tools
+========================================
+
+Tool              Type              Query Language    Best For
+-----------------------------------------------------------------
+Neo4j             Graph DB          Cypher            General purpose graphs
+Apache Jena       RDF Framework     SPARQL            Semantic web / RDF data
+RDFLib            Python Library    SPARQL (basic)    Scripted / small KGs
+Protégé           Ontology Editor   OWL / SWRL        Ontology design
+GraphDB           RDF Triple Store  SPARQL            Enterprise semantic KGs
+Gephi             Visualisation     N/A               Large graph visualisation
+LangChain         AI/LLM Tool       Natural Language  Text-to-KG extraction
+
+
+========================================
+7. Key Considerations When Choosing a Tool
+========================================
+
+1. Data Scale
+   Small KG (<10,000 nodes): RDFLib or Neo4j Community
+   Large KG (millions of edges): JanusGraph, Amazon Neptune
+
+2. Data Format
+   Already have RDF/OWL data: GraphDB, Apache Jena
+   Raw text/documents: LangChain, LlamaIndex, spaCy
+
+3. Query Requirements
+   Need graph traversal (shortest path, subgraph): Neo4j (Cypher)
+   Need semantic queries with inference: SPARQL (Jena / GraphDB)
+
+4. Visualisation Needs
+   Interactive exploration: Linkurious, Neo4j Browser
+   Publication-quality layout: Gephi, yEd
+
+5. Budget
+   Free/Open-source: Neo4j Community, RDFLib, Protégé, Gephi
+   Commercial/Cloud: Amazon Neptune, TopBraid, Linkurious
+
+
+========================================
+8. Example Knowledge Graph — Hyderabad Tourism
+========================================
+
+Entities and Relationships:
+
+    Hyderabad  --> has_monument      --> Charminar
+    Hyderabad  --> has_monument      --> Golconda Fort
+    Hyderabad  --> is_famous_for     --> Biryani
+    Hyderabad  --> has_lake          --> Hussain Sagar
+
+    Charminar  --> type              --> Historical Monument
+    Charminar  --> built_in          --> 1591
+    Charminar  --> located_in        --> Old City
+
+    Golconda Fort  --> type          --> Fort
+    Golconda Fort  --> built_by      --> Qutb Shahi Dynasty
+
+    Biryani  --> category            --> Food
+    Biryani  --> pairs_with          --> Irani Chai
+    Biryani  --> origin_cuisine      --> Mughlai
+
+    Hussain Sagar  --> type          --> Lake
+    Hussain Sagar  --> has_feature   --> Buddha Statue
+
+
+========================================
+9. Conclusion
+========================================
+
+Knowledge Graphs provide a powerful and flexible way to represent
+connected, semantic information. They underpin major AI applications
+including search engines, recommendation systems, virtual assistants,
+and question-answering systems.
+
+The right tool depends on the scale, format, and use case:
+- For quick Python scripting: RDFLib
+- For full-scale graph applications: Neo4j
+- For semantic reasoning: Apache Jena + Protégé
+- For text-based KG extraction: LangChain + spaCy
+
+As AI systems grow more complex, Knowledge Graphs serve as the
+structured memory that makes intelligent reasoning possible.
